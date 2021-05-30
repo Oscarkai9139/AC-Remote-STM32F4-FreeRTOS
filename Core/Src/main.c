@@ -95,21 +95,55 @@ int main(void)
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
-  xTaskCreate(led_task, "led_task", 500, NULL, 1, NULL);
-  xTaskCreate(switch_task, "switch_task", 500, NULL, 1, NULL);
+  //xTaskCreate(led_task, "led_task", 500, NULL, 1, NULL);
+  //xTaskCreate(switch_task, "switch_task", 500, NULL, 1, NULL);
   //xTaskCreate(numpad_task, "numpad_task", 500, NULL, 1, NULL);
-  //xTaskCreate(ir_rev_task, "ir_rev_task", 500, NULL, 1, NULL);
+  //xTaskCreate(ir_rev_task, "ir_rev_task", 1000, NULL, 1, NULL);
   //xTaskCreate(ir_trm_task, "ir_trm_task", 500, NULL, 1, NULL);
 
 
-  vTaskStartScheduler();
+  printf("[main] Start Scheduler \n\r");
+  //vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t zero = 0;
+  uint32_t one = 0;
+  uint32_t data = 0;
+  int i;
   while (1)
   {
     /* USER CODE END WHILE */
+
+	data = 0;
+	printf("[ir_rev_task] Start\n\r");
+	printf("[ir_rev_task] State: wait 1st low \n\r");
+
+	while (HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin));
+	while (!(HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin))){
+		printf("[ir_rev_task] State: wait high 9ms \n\r");
+	}
+
+	printf("[ir_rev_task] Decoding ... \n\r");
+	for ( i=0; i<110; i++){
+
+		one = 0;
+		zero = 0;
+		while (!(HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin))){
+			zero++;
+			if(zero > 1500) break;
+		}
+
+		printf("-%3d ", zero);
+		while ((HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin))){  // count the space length while the pin is high
+			one++;
+			if(one > 1500) break;
+		}
+
+		printf("+%3d ", zero);
+		if((i%10)==0) printf("\n\r");
+	}
 
     /* USER CODE BEGIN 3 */
   }
