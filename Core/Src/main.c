@@ -41,6 +41,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart4;
 
 /* USER CODE BEGIN PV */
@@ -51,6 +53,7 @@ UART_HandleTypeDef huart4;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_UART4_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -62,6 +65,8 @@ void switch_task(void const *pvParameters);
 void numpad_task(void const *pvParameters);
 void ir_rev_task(void const *pvParameters);
 void ir_trm_task(void const *pvParameters);
+
+void delay_us (uint16_t us);
 /* USER CODE END 0 */
 
 /**
@@ -93,7 +98,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_UART4_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start(&htim1);
+
 
   //xTaskCreate(led_task, "led_task", 500, NULL, 1, NULL);
   //xTaskCreate(switch_task, "switch_task", 500, NULL, 1, NULL);
@@ -102,50 +110,30 @@ int main(void)
   //xTaskCreate(ir_trm_task, "ir_trm_task", 500, NULL, 1, NULL);
 
 
-  printf("[main] Start Scheduler \n\r");
+  printf("\n\r[main] Start Scheduler \n\r");
   //vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t zero = 0;
-  uint32_t one = 0;
-  uint32_t data = 0;
-  int i;
+
+  uint32_t temp;
+  printf("[ir_rev_task] Start\n\r");
+  printf("[ir_rev_task] State: wait 1st low \n\r");
   while (1)
   {
     /* USER CODE END WHILE */
-
-	data = 0;
-	printf("[ir_rev_task] Start\n\r");
-	printf("[ir_rev_task] State: wait 1st low \n\r");
-
+	__HAL_TIM_SET_COUNTER(&htim1,0);
 	while (HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin));
-	while (!(HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin))){
-		printf("[ir_rev_task] State: wait high 9ms \n\r");
-	}
+	temp = __HAL_TIM_GET_COUNTER(&htim1);
+	printf("+%d", temp);
 
-	printf("[ir_rev_task] Decoding ... \n\r");
-	for ( i=0; i<110; i++){
+	__HAL_TIM_SET_COUNTER(&htim1,0);
+	while (!(HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin)));
+    temp = __HAL_TIM_GET_COUNTER(&htim1);
+	printf("-%d", temp);
 
-		one = 0;
-		zero = 0;
-		while (!(HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin))){
-			zero++;
-			if(zero > 1500) break;
-		}
-
-		printf("-%3d ", zero);
-		while ((HAL_GPIO_ReadPin (IR_Receive_GPIO_Port, IR_Receive_Pin))){  // count the space length while the pin is high
-			one++;
-			if(one > 1500) break;
-		}
-
-		printf("+%3d ", zero);
-		if((i%10)==0) printf("\n\r");
-	}
-
-    /* USER CODE BEGIN 3 */
+	/* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -169,7 +157,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 192;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -178,15 +171,61 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 76-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 65535;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
 }
 
 /**
@@ -325,7 +364,11 @@ void switch_task(void const *pvParameters) {
 	}
 }
 
-
+void delay_us (uint16_t us)
+{
+	__HAL_TIM_SET_COUNTER(&htim1,0);  // set the counter value a 0
+	while (__HAL_TIM_GET_COUNTER(&htim1) < us);  // wait for the counter to reach the us input in the parameter
+}
 
 /* USER CODE END 4 */
 

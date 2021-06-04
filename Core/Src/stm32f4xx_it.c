@@ -169,8 +169,8 @@ void DebugMon_Handler(void)
 /**
   * @brief This function handles Pendable request for system service.
   */
-//v/oid PendSV_Handler(void)
-///{
+//void PendSV_Handler(void)
+//{
   /* USER CODE BEGIN PendSV_IRQn 0 */
 
   /* USER CODE END PendSV_IRQn 0 */
