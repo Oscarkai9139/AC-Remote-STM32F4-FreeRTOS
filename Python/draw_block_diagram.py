@@ -19,14 +19,31 @@ if __name__ == "__main__":
   f.close()
   #***print(vals)
 
+  # Data frame decode
+  set_bit = 0
+  data = []
+
   # parameters for time graph
   time = 0
   y = []
   t = []
   for val in vals:
+    # Decode input signal
+    if(val > 0):
+      if(val > 3000):
+        set_bit = 'T'
+      elif(val > 2000):
+        set_bit = 'S'
+      elif(val > 1000):
+        set_bit = 1
+      else:
+        set_bit = 0
+    else:
+      data.append(set_bit)
+
     if(val > 0):
       target_t = time + val
-    else: 
+    else:
       target_t = time - val
 
     while(time != target_t):
@@ -37,6 +54,16 @@ if __name__ == "__main__":
       else:
         y.append(0)
 
-  plt.plot(t,y)
-  plt.show()
+  print("[1] Start Decoding...")
+  print("<log> length of data: ", len(data)-4, "bit")
+
+  for bit in data:
+    if (bit == 'T'):
+      print("")
+    print(bit, end="")
+  print("")
+
+
+  #plt.plot(t,y)
+  #plt.show()
 
